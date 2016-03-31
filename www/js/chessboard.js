@@ -242,6 +242,7 @@ var ANIMATION_HAPPENING = false,
   CURRENT_ORIENTATION = 'white',
   CURRENT_POSITION = {},
   SQUARE_SIZE,
+  CLICK_POSITION,
   DRAGGED_PIECE,
   DRAGGED_PIECE_LOCATION,
   DRAGGED_PIECE_SOURCE,
@@ -438,11 +439,16 @@ function expandConfig() {
     cfg.draggable = true;
   }
 
+  // default clickmove is false
+  if (cfg.clickmove !== true) {
+    cfg.clickmove = false;
+  }
+
   // default piece theme is wikipedia
   if (cfg.hasOwnProperty('pieceTheme') !== true ||
       (typeof cfg.pieceTheme !== 'string' &&
        typeof cfg.pieceTheme !== 'function')) {
-    cfg.pieceTheme = 'img/chesspieces/wikipedia/{piece}.png';
+    cfg.pieceTheme = 'http://www.chessboardjs.com/img/chesspieces/wikipedia/{piece}.png';
   }
 
   // animation speeds
@@ -938,7 +944,7 @@ function calculateAnimations(pos1, pos2) {
       type: 'add',
       square: i,
       piece: pos2[i]
-    })
+    });
 
     delete pos2[i];
   }
@@ -1119,7 +1125,6 @@ function trashDraggedPiece() {
 }
 
 function dropDraggedPieceOnSquare(square) {
-  removeSquareHighlights();
 
   // update position
   var newPosition = deepCopy(CURRENT_POSITION);
@@ -1151,6 +1156,10 @@ function dropDraggedPieceOnSquare(square) {
 
   // set state
   DRAGGING_A_PIECE = false;
+
+  if (!CURRENT_POSITION[CLICK_POSITION]) {
+    removeSquareHighlights();  
+  }
 }
 
 function beginDraggingPiece(source, piece, x, y) {
@@ -1483,6 +1492,22 @@ function mousedownSquare(e) {
 
   var square = $(this).attr('data-square');
 
+  if (cfg.clickmove) {
+    if (!CLICK_POSITION && CURRENT_POSITION[square]) {
+      CLICK_POSITION = square;
+    } else if (CLICK_POSITION !== square) {
+      var move = widget.move(CLICK_POSITION + "-" + square);
+      if (move[square]) {
+        CLICK_POSITION = null;
+        removeSquareHighlights();
+      }
+      return;
+    } else {
+      CLICK_POSITION = null;
+      removeSquareHighlights();
+    }
+  }
+
   // no piece on this square
   if (validSquare(square) !== true ||
       CURRENT_POSITION.hasOwnProperty(square) !== true) {
@@ -1497,6 +1522,20 @@ function touchstartSquare(e) {
   if (cfg.draggable !== true) return;
 
   var square = $(this).attr('data-square');
+  
+  if (cfg.clickmove) {
+    if (!CLICK_POSITION && CURRENT_POSITION[square]) {
+      CLICK_POSITION = square;
+    } else if (CLICK_POSITION !== square) {
+      widget.move(CLICK_POSITION + "-" + square);
+      CLICK_POSITION = null;
+      removeSquareHighlights();
+      return;
+    } else {
+      CLICK_POSITION = null;
+      removeSquareHighlights();
+    }
+  }
 
   // no piece on this square
   if (validSquare(square) !== true ||
@@ -1564,7 +1603,7 @@ function touchendWindow(e) {
   // get the location
   var location = isXYOnSquare(e.originalEvent.changedTouches[0].pageX,
     e.originalEvent.changedTouches[0].pageY);
-
+  
   stopDraggedPiece(location);
 }
 
